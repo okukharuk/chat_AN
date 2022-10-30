@@ -1,6 +1,8 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/dist/query/react';
 import { io } from 'socket.io-client';
 
+import { SocketSlice } from '../store/reducers/SocketSlice';
+
 export const socketAPI = createApi({
   reducerPath: "socketAPI",
   baseQuery: fetchBaseQuery({ baseUrl: "/api" }),
@@ -23,14 +25,13 @@ export const socketAPI = createApi({
 
           socket.emit("handshake", async (uid: string, users: string[]) => {
             console.info("User handshake callback message received");
-            dispatch({ type: "update_users", payload: users });
-            dispatch({ type: "update_uid", payload: uid });
+            dispatch(SocketSlice.actions.update_users(users));
+            dispatch(SocketSlice.actions.update_uid(uid));
           });
         };
 
         socket.connect();
         SendHandshake();
-        console.log(socket);
 
         socket.on("disconnect", (reason) => {
           if (reason === "io server disconnect") {
@@ -42,13 +43,12 @@ export const socketAPI = createApi({
 
         socket.on("user_connected", (users: string[]) => {
           console.info("User connected message received");
-          console.log("hello");
-          dispatch({ type: "update_users", payload: users });
+          dispatch(SocketSlice.actions.update_users(users));
         });
 
         socket.on("user_disconnected", (uid: string) => {
           console.info("User disconnected message received");
-          dispatch({ type: "remove_user", payload: uid });
+          dispatch(SocketSlice.actions.remove_user(uid));
         });
 
         socket.io.on("reconnect", (attempt) => {
