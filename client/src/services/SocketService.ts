@@ -3,10 +3,37 @@ import { io } from 'socket.io-client';
 
 import { SocketSlice } from '../store/reducers/SocketSlice';
 
+const socket = io("ws://localhost:1337", {
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+  autoConnect: false,
+});
+
 export const socketAPI = createApi({
   reducerPath: "socketAPI",
   baseQuery: fetchBaseQuery({ baseUrl: "/api" }),
   endpoints: (build) => ({
+    addUserToQueue: build.mutation<void, string>({
+      queryFn: (userUid: string) => {
+        return new Promise((resolve) => {
+          socket.emit("add_user_to_queue", userUid);
+        });
+      },
+    }),
+    createRoom: build.mutation<void, string[]>({
+      queryFn: (chatUsers: string[]) => {
+        return new Promise((resolve) => {
+          socket.emit("create_room", chatUsers);
+        });
+      },
+    }),
+    sendMessage: build.mutation<void, string[]>({
+      queryFn: (data: string[]) => {
+        return new Promise((resolve) => {
+          socket.emit("send_message", data);
+        });
+      },
+    }),
     subscribeToEvents: build.query<any, void>({
       queryFn: () => ({ data: [] }),
       async onCacheEntryAdded(
@@ -14,11 +41,6 @@ export const socketAPI = createApi({
         { dispatch, updateCachedData, cacheEntryRemoved }
       ) {
         // Path is a prefix that will be used right after domain name
-        const socket = io("ws://localhost:1337", {
-          reconnectionAttempts: 5,
-          reconnectionDelay: 1000,
-          autoConnect: false,
-        });
 
         const SendHandshake = async () => {
           console.info("Sending handshake to server ...");
@@ -34,12 +56,15 @@ export const socketAPI = createApi({
         SendHandshake();
 
         socket.on("disconnect", (reason) => {
+          console.log("hello");
           if (reason === "io server disconnect") {
             // the disconnection was initiated by the server, you need to reconnect manually
             socket.connect();
           }
           // else the socket will automatically try to reconnect
         });
+
+        socket.on("user_left", () => {});
 
         socket.on("user_connected", (users: string[]) => {
           console.info("User connected message received");
@@ -49,6 +74,20 @@ export const socketAPI = createApi({
         socket.on("user_disconnected", (uid: string) => {
           console.info("User disconnected message received");
           dispatch(SocketSlice.actions.remove_user(uid));
+        });
+
+        socket.on("get_message", (message: string) => {
+          console.info("Message received");
+          dispatch(
+            SocketSlice.actions.update_messages({ message: message, type: 2 })
+          );
+        });
+
+        socket.on("room_created", (roomCreated: boolean) => {
+          if (roomCreated) {
+            dispatch(SocketSlice.actions.update_queue_status(false));
+            console.info("Room was successfully created");
+          } else console.info("Room was not created");
         });
 
         socket.io.on("reconnect", (attempt) => {

@@ -6,11 +6,15 @@ export class ServerSocket {
   public static instance: ServerSocket;
   public io: Server;
 
+  public rooms: { [sid: string]: string };
   public users: { [uid: string]: string };
+  public queue: string[];
 
   constructor(server: HttpServer) {
     ServerSocket.instance = this;
     this.users = {};
+    this.rooms = {};
+    this.queue = [];
     this.io = new Server(server, {
       serveClient: false,
       pingInterval: 10000,
@@ -31,6 +35,7 @@ export class ServerSocket {
       "handshake",
       (callback: (uid: string, users: string[]) => void) => {
         console.info("Handshake received from: " + socket.id);
+        console.log(this.users);
 
         const reconnected = Object.values(this.users).includes(socket.id);
 
@@ -68,6 +73,8 @@ export class ServerSocket {
       const uid = this.GetUidFromSocketID(socket.id);
 
       if (uid) {
+        if (this.queue.indexOf(uid) !== -1) this.queue = [];
+        this.DeleteLeftUserRoom(this.rooms, this.users[uid]);
         delete this.users[uid];
 
         const users = Object.values(this.users);
@@ -75,6 +82,49 @@ export class ServerSocket {
         this.SendMessage("user_disconnected", users, socket.id);
       }
     });
+
+    socket.on("add_user_to_queue", (uid: string) => {
+      this.queue.push(uid);
+      console.info("User added to queue");
+      if (this.queue.length == 2) this.CreateRoom(this.queue);
+    });
+
+    socket.on("send_message", (data: string[]) => {
+      console.log(data);
+      const sid = this.users[data[1]];
+      for (const [key, value] of Object.entries(this.rooms)) {
+        if (key == sid) {
+          this.io.to(value).emit("get_message", data[0]);
+          return;
+        }
+        if (value == sid) {
+          this.io.to(key).emit("get_message", data[0]);
+          return;
+        }
+      }
+    });
+  };
+
+  CreateRoom = (uids: string[]) => {
+    const user1_sid = this.users[uids[0]];
+    const user2_sid = this.users[uids[1]];
+    this.rooms[user1_sid] = user2_sid;
+    [user1_sid, user2_sid].forEach((sid) => {
+      this.io.to(sid).emit("room_created", true);
+    });
+    console.log(this.rooms);
+    this.queue = [];
+  };
+
+  DeleteLeftUserRoom = (object: { [sid: string]: string }, sid: string) => {
+    for (const [key, value] of Object.entries(object)) {
+      if (key == sid || value == sid) {
+        this.io.to(key == sid ? key : value).emit("user_left");
+        delete this.rooms[key];
+        return;
+      }
+    }
+    return;
   };
 
   GetUidFromSocketID = (id: string) => {
