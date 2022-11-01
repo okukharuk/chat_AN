@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 
 import { SocketSlice } from '../store/reducers/SocketSlice';
 
-const socket = io("ws://localhost:1337", {
+const socket = io("/", {
   reconnectionAttempts: 5,
   reconnectionDelay: 1000,
   autoConnect: false,

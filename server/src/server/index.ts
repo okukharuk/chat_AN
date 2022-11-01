@@ -1,5 +1,6 @@
 import express from 'express';
 import http from 'http';
+import path from 'path';
 
 import { ServerSocket } from '../socket';
 
@@ -13,6 +14,9 @@ export const startServer = () => {
   new ServerSocket(httpServer);
 
   /** Log the request */
+  application.use(
+    express.static(path.join(__dirname, "../../../client/build"))
+  );
   application.use((req, res, next) => {
     console.info(
       `METHOD: [${req.method}] - URL: [${req.url}] - IP: [${req.socket.remoteAddress}]`
@@ -70,5 +74,7 @@ export const startServer = () => {
   });
 
   /** Listen */
-  httpServer.listen(1337, () => console.info(`Server is running`));
+  httpServer.listen(process.env.PORT || 1337, () =>
+    console.info(`Server is running`)
+  );
 };
