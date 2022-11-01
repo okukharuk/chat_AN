@@ -74,7 +74,7 @@ export class ServerSocket {
 
       if (uid) {
         if (this.queue.indexOf(uid) !== -1) this.queue = [];
-        this.DeleteLeftUserRoom(this.rooms, this.users[uid]);
+        this.DeleteLeftUserRoom(this.rooms, this.users[uid], false);
         delete this.users[uid];
 
         const users = Object.values(this.users);
@@ -103,6 +103,10 @@ export class ServerSocket {
         }
       }
     });
+
+    socket.on("left_room", (uid: string) => {
+      this.DeleteLeftUserRoom(this.rooms, this.users[uid], true);
+    });
   };
 
   CreateRoom = (uids: string[]) => {
@@ -116,10 +120,15 @@ export class ServerSocket {
     this.queue = [];
   };
 
-  DeleteLeftUserRoom = (object: { [sid: string]: string }, sid: string) => {
+  DeleteLeftUserRoom = (
+    object: { [sid: string]: string },
+    sid: string,
+    leftRoom: boolean
+  ) => {
     for (const [key, value] of Object.entries(object)) {
       if (key == sid || value == sid) {
-        this.io.to(key == sid ? key : value).emit("user_left");
+        this.io.to(key == sid ? value : key).emit("user_left");
+        if (leftRoom) this.io.to(key == sid ? key : value).emit("user_left");
         delete this.rooms[key];
         return;
       }

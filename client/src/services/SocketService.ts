@@ -34,6 +34,13 @@ export const socketAPI = createApi({
         });
       },
     }),
+    leftRoom: build.mutation<void, string>({
+      queryFn: (uid: string) => {
+        return new Promise((resolve) => {
+          socket.emit("left_room", uid);
+        });
+      },
+    }),
     subscribeToEvents: build.query<any, void>({
       queryFn: () => ({ data: [] }),
       async onCacheEntryAdded(
@@ -64,7 +71,10 @@ export const socketAPI = createApi({
           // else the socket will automatically try to reconnect
         });
 
-        socket.on("user_left", () => {});
+        socket.on("user_left", () => {
+          console.info("User left room");
+          dispatch(SocketSlice.actions.update_in_room(false));
+        });
 
         socket.on("user_connected", (users: string[]) => {
           console.info("User connected message received");
@@ -85,7 +95,9 @@ export const socketAPI = createApi({
 
         socket.on("room_created", (roomCreated: boolean) => {
           if (roomCreated) {
+            dispatch(SocketSlice.actions.clear_messages());
             dispatch(SocketSlice.actions.update_queue_status(false));
+            dispatch(SocketSlice.actions.update_in_room(true));
             console.info("Room was successfully created");
           } else console.info("Room was not created");
         });

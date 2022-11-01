@@ -8,6 +8,7 @@ interface IMessages {
 export interface ISocketState {
   messages: IMessages[];
   queueStatus: boolean;
+  inRoom: boolean;
   uid: string;
   users: string[];
 }
@@ -15,6 +16,7 @@ export interface ISocketState {
 export const initialState: ISocketState = {
   messages: [],
   queueStatus: false,
+  inRoom: false,
   uid: "",
   users: [],
 };
@@ -31,6 +33,9 @@ export const SocketSlice = createSlice({
     },
     update_queue_status(state, action: PayloadAction<boolean>) {
       state.queueStatus = action.payload;
+    },
+    update_in_room(state, action: PayloadAction<boolean>) {
+      state.inRoom = action.payload;
     },
     update_uid(state, action: PayloadAction<string>) {
       state.uid = action.payload;
